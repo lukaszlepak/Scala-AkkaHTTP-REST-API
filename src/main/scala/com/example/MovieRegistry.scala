@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object MovieRegistry {
   sealed trait Command
-  final case class GetMovies(replyTo: ActorRef[Either[Error, Movies]]) extends Command
+  final case class GetMovies(from: Timestamp, until: Timestamp, replyTo: ActorRef[Either[Error, Movies]]) extends Command
 
   import slick.jdbc.H2Profile.api._
 
@@ -37,8 +37,13 @@ object MovieRegistry {
 
   private def registry(): Behavior[Command] =
     Behaviors.receiveMessage {
-      case GetMovies(replyTo) =>
-        val selectAll = db.run(movies.result)
+      case GetMovies(from, until, replyTo) =>
+        val selectAll = db.run {
+          movies
+            .filter(movie => movie.timestamp >= from && movie.timestamp <= until )
+            .sortBy(movie => (movie.title, movie.timestamp))
+            .result
+        }
         selectAll.onComplete {
           case Success(movies) => replyTo ! Right(Movies(movies))
           case Failure(exception) => replyTo ! Left(Error(exception.getMessage))
@@ -47,8 +52,9 @@ object MovieRegistry {
     }
 
   private val exampleMovies = Seq(
-    Movie(-1, "Secretariat", Timestamp.valueOf("2020-11-25 16:00:00")),
-    Movie(-1, "Matrix 4", Timestamp.valueOf("2020-11-25 21:00:00")),
-    Movie(-1, "Deadpool 3", Timestamp.valueOf("2020-11-26 18:00:00"))
+    Movie(-1, "Secretariat", Timestamp.valueOf("2020-12-04 16:00:00")),
+    Movie(-1, "Matrix 4", Timestamp.valueOf("2020-12-05 21:00:00")),
+    Movie(-1, "Deadpool 3", Timestamp.valueOf("2020-12-06 18:00:00")),
+    Movie(-1, "Secretariat", Timestamp.valueOf("2020-12-03 18:00:00"))
   )
 }

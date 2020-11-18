@@ -37,5 +37,27 @@ class MovieRoutesSpec extends WordSpec with Matchers with ScalaFutures with Scal
         entityAs[String] should include ("time")
       }
     }
+    "return bad request error with missing parameters"  in {
+      val request = HttpRequest(uri = "/movies")
+
+      request ~> routes ~> check {
+        status shouldEqual StatusCodes.BadRequest
+
+        contentType shouldEqual ContentTypes.`application/json`
+
+        entityAs[String] should include ("error")
+      }
+    }
+    "return bad request error with malformed parameters"  in {
+      val request = HttpRequest(uri = "/movies?from=2020-12-&until=test")
+
+      request ~> routes ~> check {
+        status shouldEqual StatusCodes.BadRequest
+
+        contentType shouldEqual ContentTypes.`application/json`
+
+        entityAs[String] should include ("error")
+      }
+    }
   }
 }

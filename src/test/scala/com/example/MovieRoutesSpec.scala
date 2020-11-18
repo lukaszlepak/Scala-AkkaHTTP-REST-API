@@ -32,13 +32,12 @@ class MovieRoutesSpec extends WordSpec with Matchers with ScalaFutures with Scal
 
         contentType shouldEqual ContentTypes.`application/json`
 
-        entityAs[String] should include ("id")
-        entityAs[String] should include ("title")
-        entityAs[String] should include ("time")
+        entityAs[String] should include ("Secretariat")
+        entityAs[String] should include ("2020-12-05 17:00:00.0")
       }
     }
-    "return bad request error with missing parameters"  in {
-      val request = HttpRequest(uri = "/movies")
+    "return bad request error with malformed parameters"  in {
+      val request = HttpRequest(uri = "/movies?from=2020-12-&until=test")
 
       request ~> routes ~> check {
         status shouldEqual StatusCodes.BadRequest
@@ -48,11 +47,33 @@ class MovieRoutesSpec extends WordSpec with Matchers with ScalaFutures with Scal
         entityAs[String] should include ("error")
       }
     }
-    "return bad request error with malformed parameters"  in {
-      val request = HttpRequest(uri = "/movies?from=2020-12-&until=test")
+    "return not found error with missing parameters"  in {
+      val request = HttpRequest(uri = "/movies")
 
       request ~> routes ~> check {
-        status shouldEqual StatusCodes.BadRequest
+        status shouldEqual StatusCodes.NotFound
+
+        contentType shouldEqual ContentTypes.`application/json`
+
+        entityAs[String] should include ("error")
+      }
+    }
+    "return screening details (GET /movies/id)"  in {
+      val request = HttpRequest(uri = "/movies/1")
+
+      request ~> routes ~> check {
+        status shouldEqual StatusCodes.OK
+
+        contentType shouldEqual ContentTypes.`application/json`
+
+        entityAs[String] should include ("screeningRoomId")
+      }
+    }
+    "return not found error with wrong id"  in {
+      val request = HttpRequest(uri = "/movies/999")
+
+      request ~> routes ~> check {
+        status shouldEqual StatusCodes.NotFound
 
         contentType shouldEqual ContentTypes.`application/json`
 

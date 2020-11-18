@@ -38,8 +38,10 @@ class MovieRoutes(movieRegistry: ActorRef[MovieRegistry.Command])(implicit val s
       case x => x
     }
 
-  def getMovies(from: Timestamp, until: Timestamp): Future[Either[Error, Movies]] =
-    movieRegistry.ask(GetMovies(from, until, _))
+  def getScreenings(from: Timestamp, until: Timestamp): Future[Either[Error, Screenings]] =
+    movieRegistry.ask(GetScreenings(from, until, _))
+  def getScreening(id: Int): Future[Either[Error, ScreeningSeats]] =
+    movieRegistry.ask(GetScreening(id, _))
 
   val movieRoutes: Route =
     Route.seal(
@@ -49,12 +51,24 @@ class MovieRoutes(movieRegistry: ActorRef[MovieRegistry.Command])(implicit val s
           concat(
             get {
               parameters("from".as[Timestamp], "until".as[Timestamp]) { (from, until) =>
-                onSuccess(getMovies(from, until)) {
-                  case Left(error) => complete(500, error)
-                  case Right(movies) => complete(movies)
+                onSuccess(getScreenings(from, until)) {
+                  case Left(error: ExceptionError) => complete(500, error)
+                  case Right(screenings) => complete(screenings)
                 }
               }
             })
-        })
+        }, path(IntNumber) { id =>
+          concat(
+            get {
+                onSuccess(getScreening(id)) {
+                  case Left(error: ExceptionError) => complete(500, error)
+                  case Left(error: NotFoundError) => complete(404, error)
+                  case Right(screening) => complete(screening)
+                }
+
+            }
+          )
+        }
+      )
     })
 }

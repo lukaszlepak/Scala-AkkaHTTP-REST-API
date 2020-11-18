@@ -1,8 +1,8 @@
 package com.example
 
-import java.sql.Timestamp
-
 import slick.jdbc.JdbcProfile
+
+final case class Movie(id: Int, title: String)
 
 object MovieSchema extends JdbcProfile {
 
@@ -13,9 +13,7 @@ object MovieSchema extends JdbcProfile {
 
     def title = column[String]("TITLE")
 
-    def timestamp = column[Timestamp]("TIMESTAMP")
-
-    def * = (id, title, timestamp) <> ((Movie.apply _).tupled, Movie.unapply)
+    def * = (id, title) <> ((Movie.apply _).tupled, Movie.unapply)
   }
 
   val movies = TableQuery[MovieTable]

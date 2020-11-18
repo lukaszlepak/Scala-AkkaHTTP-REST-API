@@ -17,9 +17,11 @@ object JsonFormats {
 
   import DefaultJsonProtocol._
 
-  implicit val movieJsonFormat: RootJsonFormat[Movie] = jsonFormat3(Movie)
+  implicit val screeningsJsonFormat: RootJsonFormat[Screenings] = jsonFormat1(Screenings)
 
-  implicit val moviesJsonFormat: RootJsonFormat[Movies] = jsonFormat1(Movies)
+  implicit val screeningJsonFormat: RootJsonFormat[ScreeningSeats] = jsonFormat3(ScreeningSeats)
 
-  implicit val errorJsonFormat: RootJsonFormat[Error] = jsonFormat1(Error)
+  implicit val exceptionErrorJsonFormat: RootJsonFormat[ExceptionError] = jsonFormat1(ExceptionError)
+
+  implicit val notFoundErrorJsonFormat: RootJsonFormat[NotFoundError] = jsonFormat1(NotFoundError)
 }

@@ -25,7 +25,7 @@ class MovieRoutesSpec extends WordSpec with Matchers with ScalaFutures with Scal
 
   "MovieRoutes" should {
     "return example movies (GET /movies)" in {
-      val request = HttpRequest(uri = "/movies")
+      val request = HttpRequest(uri = "/movies?from=2020-12-01%2001:00:00&until=2020-12-09%2001:00:00")
 
       request ~> routes ~> check {
         status shouldEqual StatusCodes.OK

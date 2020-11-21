@@ -4,11 +4,14 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
+import com.example.Registry.MovieRegistry
+import com.example.Routes.MovieRoutes
+import com.example.Service.MovieService
 
 import scala.util.Failure
 import scala.util.Success
 
-object QuickstartApp {
+object App {
   private def startHttpServer(routes: Route)(implicit system: ActorSystem[_]): Unit = {
     import system.executionContext
 
@@ -27,7 +30,10 @@ object QuickstartApp {
       val movieRegistryActor = context.spawn(MovieRegistry(), "MovieRegistryActor")
       context.watch(movieRegistryActor)
 
-      val routes = new MovieRoutes(movieRegistryActor)(context.system)
+      val movieServiceActor = context.spawn(MovieService(movieRegistryActor), "MovieServiceActor")
+      context.watch(movieServiceActor)
+
+      val routes = new MovieRoutes(movieServiceActor)(context.system)
       startHttpServer(routes.movieRoutes)(context.system)
 
       Behaviors.empty

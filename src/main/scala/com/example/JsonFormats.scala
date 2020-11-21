@@ -2,6 +2,8 @@ package com.example
 
 import java.sql.Timestamp
 
+import com.example.Service.MovieService._
+import com.example.Service.{Reservation, ReservationResponse, Screening, Screenings}
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, JsonFormat, RootJsonFormat}
 
 object JsonFormats {
@@ -19,9 +21,15 @@ object JsonFormats {
 
   implicit val screeningsJsonFormat: RootJsonFormat[Screenings] = jsonFormat1(Screenings)
 
-  implicit val screeningJsonFormat: RootJsonFormat[ScreeningSeats] = jsonFormat3(ScreeningSeats)
+  implicit val screeningJsonFormat: RootJsonFormat[Screening] = jsonFormat3(Screening)
+
+  implicit val reservationJsonFormat: RootJsonFormat[Reservation] = jsonFormat3(Reservation)
+
+  implicit val reservationResponseJsonFormat: RootJsonFormat[ReservationResponse] = jsonFormat1(ReservationResponse)
 
   implicit val exceptionErrorJsonFormat: RootJsonFormat[ExceptionError] = jsonFormat1(ExceptionError)
 
   implicit val notFoundErrorJsonFormat: RootJsonFormat[NotFoundError] = jsonFormat1(NotFoundError)
+
+  implicit val alreadyExistsErrorJsonFormat: RootJsonFormat[AlreadyExists] = jsonFormat1(AlreadyExists)
 }

@@ -12,6 +12,8 @@ lazy val root = (project in file(".")).
       "com.h2database" % "h2" % "1.4.200",
       "com.typesafe.slick" %% "slick" % "3.3.3",
 
+      "com.github.pureconfig" %% "pureconfig" % "0.14.0",
+
       "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-spray-json"     % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,

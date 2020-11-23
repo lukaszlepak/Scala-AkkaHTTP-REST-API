@@ -4,6 +4,8 @@ import slick.jdbc.JdbcProfile
 
 final case class ScreeningRoomDB(id: Int, rows: Int, seatsPerRow: Int)
 
+case class ScreeningRoomsDB(rooms: List[ScreeningRoomDB])
+
 object ScreeningRoomSchema extends JdbcProfile {
 
   import api._

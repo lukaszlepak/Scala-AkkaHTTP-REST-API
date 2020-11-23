@@ -36,8 +36,7 @@ class RoutesSpec extends WordSpec with Matchers with ScalaFutures with Scalatest
 
         contentType shouldEqual ContentTypes.`application/json`
 
-        entityAs[String] should include ("Secretariat")
-        entityAs[String] should include ("2020-12-05 17:00:00.0")
+        entityAs[String] should include ("screenings")
       }
     }
     "return bad request error with malformed parameters"  in {
@@ -127,7 +126,7 @@ class RoutesSpec extends WordSpec with Matchers with ScalaFutures with Scalatest
       val request = HttpRequest(
         method = HttpMethods.POST,
         uri = "/movies/reservations",
-        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"Jack Sparrow\", \"screeningId\": 1, \"seats\":[[2,2],[2,4]]}")
+        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"Jack Sparrow\", \"screeningId\": 1, \"seats\":[[2,2],[2,4]], \"adult_tickets\": 1, \"student_tickets\": 1, \"child_tickets\": 0}")
       )
 
       request ~> routes ~> check {
@@ -143,7 +142,7 @@ class RoutesSpec extends WordSpec with Matchers with ScalaFutures with Scalatest
       val request = HttpRequest(
         method = HttpMethods.POST,
         uri = "/movies/reservations",
-        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"JackSparrowInvalid49\", \"screeningId\": 1, \"seats\":[[1,2],[1,1]]}")
+        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"JackSparrowInvalid49\", \"screeningId\": 1, \"seats\":[[1,2],[1,1]], \"adult_tickets\": 1, \"student_tickets\": 1, \"child_tickets\": 0}")
       )
 
       request ~> routes ~> check {

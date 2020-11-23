@@ -12,12 +12,16 @@ import com.example.Registry.{Registry, ReservationCreatedDB, ReservationsScreeni
 
 import scala.concurrent.duration._
 import akka.util.Timeout
+import pureconfig.ConfigSource
 
 import scala.util.matching.Regex
-
+import pureconfig.generic.auto._
 
 final case class Reservation(screeningId: Int, name: String, seats: Seq[(Int, Int)], adult_tickets: Int, student_tickets: Int, child_tickets: Int)
 final case class ReservationResponse(total_amount: String, expiration_time: Timestamp)
+
+final case class Prices(adultTicketsPrice: Double, studentTicketsPrice: Double, childTicketsPrice: Double)
+final case class ExpirationTime(expirationTime: Long)
 
 object ReservationService {
   sealed trait ReservationServiceCommand
@@ -35,10 +39,10 @@ object ReservationService {
   case class WrongParameter(error: String) extends ReservationServiceError
 
   def apply(registry: ActorRef[Registry.RegistryCommand]): Behavior[ReservationServiceCommand] = {
-    reservationService(registry)
+    reservationService(ConfigSource.default.loadOrThrow[Prices], ConfigSource.default.loadOrThrow[ExpirationTime], registry)
   }
 
-  private def reservationService(registry: ActorRef[Registry.RegistryCommand]): Behavior[ReservationServiceCommand] = {
+  private def reservationService(prices: Prices, expirationTime: ExpirationTime, registry: ActorRef[Registry.RegistryCommand]): Behavior[ReservationServiceCommand] = {
     Behaviors.setup[ReservationServiceCommand] { context =>
       implicit val timeout: Timeout = 3.seconds
       Behaviors.receiveMessage {
@@ -59,11 +63,11 @@ object ReservationService {
             splitNames match {
               case Some(list) if list.forall(s => properName.matches(s)) =>
                 context.askWithStatus(registry, (ref: ActorRef[StatusReply[ReservationsScreeningDB]]) => GetReservationsScreeningDB(reservation.screeningId, ref)) {
-                  case Success(ReservationsScreeningDB(reservedSeats)) => GetReservationsScreeningDBResponse(reservedSeats, reservation, replyTo)
-                  case Failure(StatusReply.ErrorMessage(errorMessage)) => CreateReservationDBResponse(Left(ExceptionError(errorMessage)), replyTo)
-                  case Failure(exception) => CreateReservationDBResponse(Left(ExceptionError(exception.getMessage)), replyTo)
+                  case Success(ReservationsScreeningDB(reservedSeats)) =>         GetReservationsScreeningDBResponse(reservedSeats, reservation, replyTo)
+                  case Failure(StatusReply.ErrorMessage(errorMessage)) =>         CreateReservationDBResponse(Left(ExceptionError(errorMessage)), replyTo)
+                  case Failure(exception) =>                                      CreateReservationDBResponse(Left(ExceptionError(exception.getMessage)), replyTo)
                 }
-              case _ => replyTo ! Left(WrongParameter("Wrong name"))
+              case _ =>                                                           replyTo ! Left(WrongParameter("Wrong name"))
             }
           }
           Behaviors.same
@@ -100,7 +104,7 @@ object ReservationService {
         case GetScreeningRoomDBResponse(reservation, replyTo) =>
           context.askWithStatus(registry, (ref: ActorRef[StatusReply[Option[ScreeningTime]]]) => GetScreeningTimeDB(reservation.screeningId, ref)) {
             case Success(Some(ScreeningTime(time))) =>
-              if((time.getTime - System.currentTimeMillis()) > 900000)
+              if((time.getTime - System.currentTimeMillis()) > expirationTime.expirationTime)
                                                                                   GetScreeningTimeDBResponse(reservation, time, replyTo)
               else
                                                                                   CreateReservationDBResponse(Left(WrongParameter("It is less than 15 minutes until screening")), replyTo)
@@ -123,8 +127,12 @@ object ReservationService {
             case Right(reservationAndTime) => {
               val reservation = reservationAndTime._1
 
-              val price = reservation.adult_tickets * 25 + reservation.student_tickets * 18 + reservation.child_tickets * 12.5
-              replyTo ! Right(ReservationResponse(price.toString, new Timestamp(reservationAndTime._2.getTime - 900000)))
+              val price =
+                reservation.adult_tickets * prices.adultTicketsPrice +
+                reservation.student_tickets * prices.studentTicketsPrice +
+                reservation.child_tickets * prices.childTicketsPrice
+
+              replyTo ! Right(ReservationResponse(price.toString, new Timestamp(reservationAndTime._2.getTime - expirationTime.expirationTime)))
             }
             case Left(e) => replyTo ! Left(e)
           }

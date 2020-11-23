@@ -6,12 +6,14 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.pattern.StatusReply
 import com.example.Service.Reservation
+import pureconfig.{ConfigReader, ConfigSource}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.util.{Failure, Success}
 
+import pureconfig.generic.auto._
 
 final case class ScreeningTitleDB(movieTitle: String, screeningId: Int, screeningTime: Timestamp)
 final case class ScreeningTitlesDB(screeningTitles: Seq[ScreeningTitleDB])
@@ -46,18 +48,20 @@ object Registry {
 
   def apply(): Behavior[RegistryCommand] = {
 
-    Await.result( db.run {
-      (
-        movies.schema ++
-        screeningRooms.schema ++
-        screenings.schema ++
-        reservations.schema
-        ).create
-    }, Duration(1, SECONDS))
+    implicit val timestampReader = ConfigReader[String].map(s => Timestamp.valueOf(s))
 
-    db.run(movies ++= exampleMovies)
-    db.run(screeningRooms ++= exampleScreeningRooms)
-    db.run(screenings ++= exampleScreenings)
+    Await.result(
+      db.run {(
+          movies.schema ++
+          screeningRooms.schema ++
+          screenings.schema ++
+          reservations.schema
+        ).create
+      }, Duration(1, SECONDS))
+
+    db.run(movies ++= ConfigSource.default.loadOrThrow[MoviesDB].movies)
+    db.run(screeningRooms ++= ConfigSource.default.loadOrThrow[ScreeningRoomsDB].rooms)
+    db.run(screenings ++= ConfigSource.default.loadOrThrow[ScreeningsDB].screenings)
 
     registry()
   }
@@ -129,26 +133,4 @@ object Registry {
         }
         Behaviors.same
     }
-
-  private val exampleMovies = Seq(
-    MovieDB(-1, "Secretariat"),
-    MovieDB(-1, "Matrix 4"),
-    MovieDB(-1, "Deadpool 3")
-  )
-
-  private val exampleScreeningRooms = Seq(
-    ScreeningRoomDB(-1, 2, 4),
-    ScreeningRoomDB(-1, 3, 3),
-    ScreeningRoomDB(-1, 1, 5)
-  )
-
-  private val exampleScreenings = Seq(
-    ScreeningDB(-1, 1, 1, Timestamp.valueOf("2020-12-02 16:00:00")),
-    ScreeningDB(-1, 1, 2, Timestamp.valueOf("2020-12-04 21:00:00")),
-    ScreeningDB(-1, 1, 3, Timestamp.valueOf("2020-12-06 18:00:00")),
-
-    ScreeningDB(-1, 2, 1, Timestamp.valueOf("2020-12-03 19:00:00")),
-    ScreeningDB(-1, 2, 2, Timestamp.valueOf("2020-12-05 17:00:00")),
-    ScreeningDB(-1, 3, 3, Timestamp.valueOf("2020-12-07 20:00:00"))
-  )
 }

@@ -4,6 +4,8 @@ import slick.jdbc.JdbcProfile
 
 final case class MovieDB(id: Int, title: String)
 
+case class MoviesDB(movies: List[MovieDB])
+
 object MovieSchema extends JdbcProfile {
 
   import api._

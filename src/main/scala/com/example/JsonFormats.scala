@@ -2,7 +2,6 @@ package com.example
 
 import java.sql.Timestamp
 
-import com.example.Service.MovieService._
 import com.example.Service.{Reservation, ReservationResponse, Screening, Screenings}
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, JsonFormat, RootJsonFormat}
 
@@ -25,11 +24,12 @@ object JsonFormats {
 
   implicit val reservationJsonFormat: RootJsonFormat[Reservation] = jsonFormat3(Reservation)
 
-  implicit val reservationResponseJsonFormat: RootJsonFormat[ReservationResponse] = jsonFormat1(ReservationResponse)
+  implicit val reservationResponseJsonFormat: RootJsonFormat[ReservationResponse] = jsonFormat2(ReservationResponse)
 
-  implicit val exceptionErrorJsonFormat: RootJsonFormat[ExceptionError] = jsonFormat1(ExceptionError)
+  implicit val movieExceptionErrorJsonFormat: RootJsonFormat[Service.MovieService.ExceptionError] = jsonFormat1(Service.MovieService.ExceptionError)
+  implicit val movieNotFoundErrorJsonFormat: RootJsonFormat[Service.MovieService.NotFoundError] = jsonFormat1(Service.MovieService.NotFoundError)
 
-  implicit val notFoundErrorJsonFormat: RootJsonFormat[NotFoundError] = jsonFormat1(NotFoundError)
-
-  implicit val alreadyExistsErrorJsonFormat: RootJsonFormat[AlreadyExists] = jsonFormat1(AlreadyExists)
+  implicit val reservationExceptionErrorJsonFormat: RootJsonFormat[Service.ReservationService.ExceptionError] = jsonFormat1(Service.ReservationService.ExceptionError)
+  implicit val reservationNotFoundErrorJsonFormat: RootJsonFormat[Service.ReservationService.NotFoundError] = jsonFormat1(Service.ReservationService.NotFoundError)
+  implicit val reservationWrongParameterErrorJsonFormat: RootJsonFormat[Service.ReservationService.WrongParameter] = jsonFormat1(Service.ReservationService.WrongParameter)
 }

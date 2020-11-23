@@ -4,9 +4,9 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
-import com.example.Registry.MovieRegistry
-import com.example.Routes.MovieRoutes
-import com.example.Service.MovieService
+import com.example.Registry.Registry
+import com.example.Routes.Routes
+import com.example.Service.{MovieService, ReservationService}
 
 import scala.util.Failure
 import scala.util.Success
@@ -27,13 +27,16 @@ object App {
   }
   def main(args: Array[String]): Unit = {
     val rootBehavior = Behaviors.setup[Nothing] { context =>
-      val movieRegistryActor = context.spawn(MovieRegistry(), "MovieRegistryActor")
-      context.watch(movieRegistryActor)
+      val registryActor = context.spawn(Registry(), "MovieRegistryActor")
+      context.watch(registryActor)
 
-      val movieServiceActor = context.spawn(MovieService(movieRegistryActor), "MovieServiceActor")
+      val movieServiceActor = context.spawn(MovieService(registryActor), "MovieServiceActor")
       context.watch(movieServiceActor)
 
-      val routes = new MovieRoutes(movieServiceActor)(context.system)
+      val reservationServiceActor = context.spawn(ReservationService(registryActor), "ReservationServiceActor")
+      context.watch(reservationServiceActor)
+
+      val routes = new Routes(movieServiceActor, reservationServiceActor)(context.system)
       startHttpServer(routes.movieRoutes)(context.system)
 
       Behaviors.empty

@@ -10,11 +10,12 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.example.JsonFormats
 import com.example.Service.MovieService._
+import com.example.Service.ReservationService._
 import com.example.Service._
 
 import scala.concurrent.Future
 
-class MovieRoutes(movieService: ActorRef[MovieService.ServiceCommand])(implicit val system: ActorSystem[_]) {
+class Routes(movieService: ActorRef[MovieService.MovieServiceCommand], reservationService: ActorRef[ReservationService.ReservationServiceCommand])(implicit val system: ActorSystem[_]) {
 
   import JsonFormats._
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -39,12 +40,12 @@ class MovieRoutes(movieService: ActorRef[MovieService.ServiceCommand])(implicit 
       case x => x
     }
 
-  def getScreenings(from: Timestamp, until: Timestamp): Future[Either[Error, Screenings]] =
+  def getScreenings(from: Timestamp, until: Timestamp): Future[Either[MovieServiceError, Screenings]] =
     movieService.ask(GetScreenings(from, until, _))
-  def getScreening(id: Int): Future[Either[Error, Screening]] =
+  def getScreening(id: Int): Future[Either[MovieServiceError, Screening]] =
     movieService.ask(GetScreening(id, _))
-  def createReservation(reservation: Reservation): Future[Either[Error, ReservationResponse]] =
-    movieService.ask(CreateReservation(reservation, _))
+  def createReservation(reservation: Reservation): Future[Either[ReservationServiceError, ReservationResponse]] =
+    reservationService.ask(CreateReservation(reservation, _))
 
   val movieRoutes: Route =
     Route.seal(
@@ -55,7 +56,7 @@ class MovieRoutes(movieService: ActorRef[MovieService.ServiceCommand])(implicit 
               get {
                 parameters("from".as[Timestamp], "until".as[Timestamp]) { (from, until) =>
                   onSuccess(getScreenings(from, until)) {
-                    case Left(error: ExceptionError) => complete(500, error)
+                    case Left(error: MovieService.ExceptionError) => complete(500, error)
                     case Right(screenings) => complete(screenings)
                   }
                 }
@@ -65,8 +66,8 @@ class MovieRoutes(movieService: ActorRef[MovieService.ServiceCommand])(implicit 
             concat(
               get {
                   onSuccess(getScreening(id)) {
-                    case Left(error: ExceptionError) => complete(500, error)
-                    case Left(error: NotFoundError) => complete(404, error)
+                    case Left(error: MovieService.ExceptionError) => complete(500, error)
+                    case Left(error: MovieService.NotFoundError) => complete(404, error)
                     case Right(screening) => complete(screening)
                   }
               }
@@ -76,8 +77,9 @@ class MovieRoutes(movieService: ActorRef[MovieService.ServiceCommand])(implicit 
               post {
                 entity(as[Reservation]){ reservation =>
                   onSuccess(createReservation(reservation)) {
-                    case Left(error: ExceptionError) => complete(500, error)
-                    case Left(error: AlreadyExists) => complete(400, error)
+                    case Left(error: ReservationService.ExceptionError) => complete(500, error)
+                    case Left(error: ReservationService.WrongParameter) => complete(400, error)
+                    case Left(error: ReservationService.NotFoundError) => complete(404, error)
                     case Right(reservation) => complete(reservation)
                   }
                 }

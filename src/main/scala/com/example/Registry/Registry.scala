@@ -6,7 +6,6 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.pattern.StatusReply
 import com.example.Service.Reservation
-import com.example._
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -21,15 +20,19 @@ final case class ScreeningScreeningRoomDB(screeningId: Int, screeningRoomId: Int
 
 final case class ReservationsScreeningDB(reservations: Seq[(Int, Int)])
 
+final case class ScreeningTime(time: Timestamp)
+
 final case class ReservationCreatedDB(insertedRows: Int)
 
-object MovieRegistry {
+object Registry {
   sealed trait RegistryCommand
   final case class GetScreeningTitlesDB(from: Timestamp, until: Timestamp, replyTo: ActorRef[StatusReply[ScreeningTitlesDB]]) extends RegistryCommand
 
   final case class GetScreeningScreeningRoomDB(id: Int, replyTo: ActorRef[StatusReply[Option[ScreeningScreeningRoomDB]]]) extends RegistryCommand
 
   final case class CreateReservationDB(reservation: Reservation, replyTo: ActorRef[StatusReply[ReservationCreatedDB]]) extends RegistryCommand
+
+  final case class GetScreeningTimeDB(id: Int, replyTo: ActorRef[StatusReply[Option[ScreeningTime]]]) extends RegistryCommand
 
   final case class GetReservationsScreeningDB(screeningId: Int, replyTo: ActorRef[StatusReply[ReservationsScreeningDB]]) extends RegistryCommand
 
@@ -92,20 +95,9 @@ object MovieRegistry {
         
       case CreateReservationDB(reservation, replyTo) => {
         db.run {
-          {
-            reservations
-              .filter( _.screeningId === reservation.screeningId )
-              .map(r => (r.row, r.seatInRow))
-              .result
-              .flatMap { reservedSeats =>
-                if(reservedSeats.exists(record => reservation.seats.contains(record)))
-                  DBIO.successful(Some(0))
-                else
-                  reservations ++= reservation.seats.map(seat => ReservationDB(-1, reservation.screeningId, reservation.name, seat._1, seat._2))
-              }
-          }.transactionally
+          reservations ++= reservation.seats.map(seat => ReservationDB(-1, reservation.screeningId, reservation.name, seat._1, seat._2))
         }.onComplete {
-          case Success(Some(value)) =>            replyTo ! StatusReply.Success(Registry.ReservationCreatedDB(value))
+          case Success(Some(value)) =>            replyTo ! StatusReply.Success(ReservationCreatedDB(value))
           case Failure(exception) =>              replyTo ! StatusReply.Error(exception.getMessage)
         }
         Behaviors.same
@@ -119,6 +111,20 @@ object MovieRegistry {
             .result
         }.onComplete {
           case Success(reservations) =>           replyTo ! StatusReply.Success(ReservationsScreeningDB(reservations.map(reservation => (reservation._1, reservation._2))))
+          case Failure(exception) =>              replyTo ! StatusReply.Error(exception.getMessage)
+        }
+        Behaviors.same
+
+      case GetScreeningTimeDB(id, replyTo) =>
+        db.run{
+          (for {
+            screening <- screenings if screening.id === id
+          } yield screening.time)
+            .result
+            .headOption
+        }.onComplete {
+          case Success(Some(time)) =>             replyTo ! StatusReply.Success(Some(ScreeningTime(time)))
+          case Success(None) =>                   replyTo ! StatusReply.Success(None)
           case Failure(exception) =>              replyTo ! StatusReply.Error(exception.getMessage)
         }
         Behaviors.same

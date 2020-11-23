@@ -6,7 +6,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.pattern.StatusReply
 import akka.util.Timeout
-import com.example.Registry.MovieRegistry._
+import com.example.Registry.Registry._
 import com.example.Registry._
 
 import scala.concurrent.duration._
@@ -15,32 +15,26 @@ import scala.util.{Failure, Success}
 
 final case class Screening(screeningId: Int, screeningRoomId: Int, availableSeats: Seq[(Int, Int)])
 final case class Screenings(screenings: Map[String, Seq[(Int, Timestamp)]])
-final case class ReservationResponse(total_amount: Int)
-
-final case class Reservation(screeningId: Int, name: String, seats: Seq[(Int, Int)])
 
 object MovieService {
-  sealed trait ServiceCommand
-  final case class GetScreening(screeningId: Int, replyTo: ActorRef[Either[Error, Screening]]) extends ServiceCommand
-  final case class GetScreenings(from: Timestamp, until: Timestamp, replyTo: ActorRef[Either[Error, Screenings]]) extends ServiceCommand
-  final case class CreateReservation(reservation: Reservation, replyTo: ActorRef[Either[Error, ReservationResponse]]) extends ServiceCommand
+  sealed trait MovieServiceCommand
+  final case class GetScreenings(from: Timestamp, until: Timestamp, replyTo: ActorRef[Either[MovieServiceError, Screenings]]) extends MovieServiceCommand
+  final case class GetScreeningsDBResponse(response: Either[MovieServiceError, Screenings], replyTo: ActorRef[Either[MovieServiceError, Screenings]]) extends MovieServiceCommand
 
-  final case class GetScreeningDBResponse(response: Either[Error, Screening], replyTo: ActorRef[Either[Error, Screening]]) extends ServiceCommand
-  final case class GetScreeningsDBResponse(response: Either[Error, Screenings], replyTo: ActorRef[Either[Error, Screenings]]) extends ServiceCommand
-  final case class GetReservationsScreeningDBResponse(screeningId: Int, response: ReservationsScreeningDB, replyTo: ActorRef[Either[Error, Screening]]) extends ServiceCommand
-  final case class CreateReservationDBResponse(response: Either[Error, (Int, Reservation)], replyTo: ActorRef[Either[Error, ReservationResponse]]) extends ServiceCommand
+  final case class GetScreening(screeningId: Int, replyTo: ActorRef[Either[MovieServiceError, Screening]]) extends MovieServiceCommand
+  final case class GetReservationsScreeningDBResponse(screeningId: Int, response: ReservationsScreeningDB, replyTo: ActorRef[Either[MovieServiceError, Screening]]) extends MovieServiceCommand
+  final case class GetScreeningDBResponse(response: Either[MovieServiceError, Screening], replyTo: ActorRef[Either[MovieServiceError, Screening]]) extends MovieServiceCommand
 
-  trait Error
-  case class ExceptionError(error: String) extends Error
-  case class NotFoundError(error: String) extends Error
-  case class AlreadyExists(error: String) extends Error
+  trait MovieServiceError
+  case class ExceptionError(error: String) extends MovieServiceError
+  case class NotFoundError(error: String) extends MovieServiceError
 
-  def apply(movieRegistry: ActorRef[MovieRegistry.RegistryCommand]): Behavior[ServiceCommand] = {
-    service(movieRegistry)
+  def apply(movieRegistry: ActorRef[Registry.RegistryCommand]): Behavior[MovieServiceCommand] = {
+    movieService(movieRegistry)
   }
 
-  private def service(movieRegistry: ActorRef[MovieRegistry.RegistryCommand]): Behavior[ServiceCommand] = {
-    Behaviors.setup[ServiceCommand] { context =>
+  private def movieService(movieRegistry: ActorRef[Registry.RegistryCommand]): Behavior[MovieServiceCommand] = {
+    Behaviors.setup[MovieServiceCommand] { context =>
       implicit val timeout: Timeout = 3.seconds
       Behaviors.receiveMessage {
 
@@ -55,10 +49,11 @@ object MovieService {
             case Failure(exception) =>                                GetScreeningsDBResponse(Left(ExceptionError(exception.getMessage)), replyTo)
           }
           Behaviors.same
-
         case GetScreeningsDBResponse(screenings, replyTo) =>
           replyTo ! screenings
           Behaviors.same
+
+
 
         case GetScreening(id, replyTo) =>
           context.askWithStatus(movieRegistry, (ref: ActorRef[StatusReply[ReservationsScreeningDB]]) => GetReservationsScreeningDB(id, ref)) {
@@ -67,7 +62,6 @@ object MovieService {
             case Failure(exception) =>                                GetScreeningDBResponse(Left(ExceptionError(exception.getMessage)), replyTo)
           }
           Behaviors.same
-
         case GetReservationsScreeningDBResponse(id, reservationsDB, replyTo) =>
           context.askWithStatus(movieRegistry, (ref: ActorRef[StatusReply[Option[ScreeningScreeningRoomDB]]]) => GetScreeningScreeningRoomDB(id, ref)) {
             case Success(Some(screening)) =>
@@ -82,30 +76,8 @@ object MovieService {
             case Failure(exception) =>                                GetScreeningDBResponse(Left(ExceptionError(exception.getMessage)), replyTo)
           }
           Behaviors.same
-
         case GetScreeningDBResponse(screening, replyTo) =>
           replyTo ! screening
-          Behaviors.same
-
-        case CreateReservation(reservation, replyTo) =>
-
-          context.askWithStatus(movieRegistry, (ref: ActorRef[StatusReply[ReservationCreatedDB]]) => CreateReservationDB(reservation, ref)) {
-            case Success(ReservationCreatedDB(0)) =>                  CreateReservationDBResponse(Left(AlreadyExists("Seats reserved already")), replyTo)
-            case Success(ReservationCreatedDB(insertedRows)) =>       CreateReservationDBResponse(Right(insertedRows, reservation), replyTo)
-            case Failure(StatusReply.ErrorMessage(errorMessage)) =>   CreateReservationDBResponse(Left(ExceptionError(errorMessage)), replyTo)
-            case Failure(exception) =>                                CreateReservationDBResponse(Left(ExceptionError(exception.getMessage)), replyTo)
-          }
-          Behaviors.same
-
-        case CreateReservationDBResponse(either, replyTo) =>
-
-          either match {
-            case Right(tuple) => {
-              val price = tuple._2.seats.foldLeft(0)((sum, _) => sum + 20)
-              replyTo ! Right(ReservationResponse(price))
-            }
-            case Left(e) => replyTo ! Left(e)
-          }
           Behaviors.same
       }
     }

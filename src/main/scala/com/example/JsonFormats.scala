@@ -22,7 +22,7 @@ object JsonFormats {
 
   implicit val screeningJsonFormat: RootJsonFormat[Screening] = jsonFormat3(Screening)
 
-  implicit val reservationJsonFormat: RootJsonFormat[Reservation] = jsonFormat3(Reservation)
+  implicit val reservationJsonFormat: RootJsonFormat[Reservation] = jsonFormat6(Reservation)
 
   implicit val reservationResponseJsonFormat: RootJsonFormat[ReservationResponse] = jsonFormat2(ReservationResponse)
 

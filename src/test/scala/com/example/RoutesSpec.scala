@@ -94,7 +94,7 @@ class RoutesSpec extends WordSpec with Matchers with ScalaFutures with Scalatest
       val request = HttpRequest(
         method = HttpMethods.POST,
         uri = "/movies/reservations",
-        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"Jack Sparrow\", \"screeningId\": 1, \"seats\":[[1,2],[1,1]]}")
+        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"Jack Sparrow\", \"screeningId\": 1, \"seats\":[[1,2],[1,1]], \"adult_tickets\": 1, \"student_tickets\": 1, \"child_tickets\": 0}")
       )
 
       request ~> routes ~> check {
@@ -111,7 +111,7 @@ class RoutesSpec extends WordSpec with Matchers with ScalaFutures with Scalatest
       val request = HttpRequest(
         method = HttpMethods.POST,
         uri = "/movies/reservations",
-        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"Jack Sparrow\", \"screeningId\": 1, \"seats\":[[1,2],[1,1]]}")
+        entity = HttpEntity(ContentTypes.`application/json`, "{\"name\": \"Jack Sparrow\", \"screeningId\": 1, \"seats\":[[1,2],[1,1]], \"adult_tickets\": 1, \"student_tickets\": 1, \"child_tickets\": 0}")
       )
 
       request ~> routes ~> check {

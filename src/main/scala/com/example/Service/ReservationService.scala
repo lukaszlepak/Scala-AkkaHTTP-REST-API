@@ -16,8 +16,8 @@ import akka.util.Timeout
 import scala.util.matching.Regex
 
 
-final case class Reservation(screeningId: Int, name: String, seats: Seq[(Int, Int)])
-final case class ReservationResponse(total_amount: Int, expiration_time: Timestamp)
+final case class Reservation(screeningId: Int, name: String, seats: Seq[(Int, Int)], adult_tickets: Int, student_tickets: Int, child_tickets: Int)
+final case class ReservationResponse(total_amount: String, expiration_time: Timestamp)
 
 object ReservationService {
   sealed trait ReservationServiceCommand
@@ -27,7 +27,7 @@ object ReservationService {
   final case class GetScreeningRoomDBResponse(reservation: Reservation, replyTo: ActorRef[Either[ReservationServiceError, ReservationResponse]]) extends ReservationServiceCommand
   final case class GetScreeningTimeDBResponse(reservation: Reservation, time: Timestamp, replyTo: ActorRef[Either[ReservationServiceError, ReservationResponse]]) extends ReservationServiceCommand
 
-  final case class CreateReservationDBResponse(response: Either[ReservationServiceError, (Int, Timestamp)], replyTo: ActorRef[Either[ReservationServiceError, ReservationResponse]]) extends ReservationServiceCommand
+  final case class CreateReservationDBResponse(response: Either[ReservationServiceError, (Reservation, Timestamp)], replyTo: ActorRef[Either[ReservationServiceError, ReservationResponse]]) extends ReservationServiceCommand
 
   trait ReservationServiceError
   case class ExceptionError(error: String) extends ReservationServiceError
@@ -43,9 +43,10 @@ object ReservationService {
       implicit val timeout: Timeout = 3.seconds
       Behaviors.receiveMessage {
         case CreateReservation(reservation, replyTo) =>
+          val ticketsSum = reservation.adult_tickets + reservation.student_tickets + reservation.child_tickets
 
-          if(reservation.seats.isEmpty)
-            replyTo ! Left(WrongParameter("Wrong seats, pick one at least"))
+          if(reservation.seats.isEmpty || ticketsSum > reservation.seats.length)
+            replyTo ! Left(WrongParameter("Wrong seats"))
           else {
             val properName: Regex = "^[A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćńółęąś]{2,}$".r
 
@@ -111,7 +112,7 @@ object ReservationService {
 
         case GetScreeningTimeDBResponse(reservation, time, replyTo) =>
           context.askWithStatus(registry, (ref: ActorRef[StatusReply[ReservationCreatedDB]]) => CreateReservationDB(reservation, ref)) {
-            case Success(ReservationCreatedDB(insertedRows)) =>                   CreateReservationDBResponse(Right((insertedRows, time)), replyTo)
+            case Success(_) =>                                                    CreateReservationDBResponse(Right((reservation, time)), replyTo)
             case Failure(StatusReply.ErrorMessage(errorMessage)) =>               CreateReservationDBResponse(Left(ExceptionError(errorMessage)), replyTo)
             case Failure(exception) =>                                            CreateReservationDBResponse(Left(ExceptionError(exception.getMessage)), replyTo)
           }
@@ -119,9 +120,11 @@ object ReservationService {
 
         case CreateReservationDBResponse(either, replyTo) =>
           either match {
-            case Right(createdAndTime) => {
-              val price = (1 to createdAndTime._1).foldLeft(0)((sum, _) => sum + 20)
-              replyTo ! Right(ReservationResponse(price, new Timestamp(createdAndTime._2.getTime - 900000)))
+            case Right(reservationAndTime) => {
+              val reservation = reservationAndTime._1
+
+              val price = reservation.adult_tickets * 25 + reservation.student_tickets * 18 + reservation.child_tickets * 12.5
+              replyTo ! Right(ReservationResponse(price.toString, new Timestamp(reservationAndTime._2.getTime - 900000)))
             }
             case Left(e) => replyTo ! Left(e)
           }
